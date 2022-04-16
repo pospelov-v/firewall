@@ -1,0 +1,12 @@
+---
+# tasks file for roles/check-hosts
+
+# Check SSH hosts reachability
+- name: Simple command (ping)
+  ping:
+
+- name: Check if ansible_play_hosts == ansible_play_hosts_all (means UNREACHABLE hosts detected)
+  run_once: true
+  assert:
+    that: ansible_play_hosts == ansible_play_hosts_all
+    quiet: yes

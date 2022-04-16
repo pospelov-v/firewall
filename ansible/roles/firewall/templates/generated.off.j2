@@ -1,0 +1,35 @@
+{{ shebang_bash }}
+# {{ ansible_managed }}
+
+{{ firewall_header_status }}
+{{ firewall_header_v4 }}
+{{ firewall_header_v6 }}
+
+{{ ifaces }}
+
+# flush rules
+{% for rule in firewall_v4_and_v6_flush_rules %}
+iptables_ {{ rule }};
+{% endfor %}
+
+# flush rules v4
+{% for rule in firewall_v4_flush_rules %}
+iptables_ {{ rule }};
+{% endfor %}
+
+# flush rules v6
+{% for rule in firewall_v6_flush_rules %}
+ip6tables_ {{ rule }};
+{% endfor %}
+
+# default policies v4
+iptables_ -P INPUT ACCEPT;
+iptables_ -P OUTPUT ACCEPT;
+iptables_ -P FORWARD ACCEPT;
+
+# default policies v6
+ip6tables_ -P INPUT ACCEPT;
+ip6tables_ -P OUTPUT ACCEPT;
+ip6tables_ -P FORWARD ACCEPT;
+
+{{ firewall_footer_status }}

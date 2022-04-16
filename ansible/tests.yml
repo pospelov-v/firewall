@@ -1,0 +1,14 @@
+---
+- hosts: test-debian11
+  become: true
+
+  gather_facts: false
+  pre_tasks:
+  - include_role:
+      name: 'install-python'
+  - name: Gather facts now
+    setup:
+
+  roles:
+  - role: 'check-hosts'
+  - role: 'firewall'

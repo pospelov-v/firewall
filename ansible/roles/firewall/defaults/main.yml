@@ -1,0 +1,117 @@
+---
+iptables_pkgs:
+  - iptables
+
+firewall_v4_configure: true
+firewall_v6_configure: true
+firewall_custom_configure: true
+network_configuration_file: "/etc/network/interfaces"
+iptables_config_dir: "/etc/iptables"
+iptables_v4_config: "{{ iptables_config_dir }}/firewall.sh"
+iptables_v6_config: "{{ iptables_config_dir }}/firewall_v6_rules.sh"
+iptables_custom_config: "{{ iptables_config_dir }}/firewall_custom_rules.sh"
+iptables_off_config: "{{ iptables_config_dir }}/off_firewall.sh"
+iptables_config_link_path: "/root/firewall.sh"
+iptables_show_v4_rules: false
+iptables_show_v6_rules: false
+
+private_interface: "{{ ansible_facts | dict2items | selectattr('value.ipv4', 'defined') | selectattr('value.ipv4.address', 'equalto', private_ip | default('')) | first | default('') }}"
+
+iface0: "iface0=\"{{ ansible_default_ipv4.interface | default('') }}\";"
+iface1: "iface1=\"{{ private_interface.value.device | default('') }}\";"
+
+ifaces: |
+  # interfaces
+  {{ iface0 }}
+  {{ iface1 | default('') }}
+  {{ iface2 | default('') }}
+  {{ iface3 | default('') }}
+  {{ iface4 | default('') }}
+
+firewall_v4_and_v6_flush_rules:
+  - -F
+  - -F -t nat
+  - -F -t mangle
+  - -F -t raw
+  - -F -t security
+  - -X
+  - -X -t nat
+  - -X -t mangle
+  - -X -t raw
+  - -X -t security
+firewall_v4_and_v6_default_rules:
+  001 default policies:
+    - -P INPUT DROP
+    - -P OUTPUT DROP
+    - -P FORWARD DROP
+  002 allow loopback:
+    - -A INPUT -i "lo" -j ACCEPT
+    - -A OUTPUT -o "lo" -j ACCEPT
+  #100 allow established related (ALLOW ALL OUT):
+    #- -A INPUT --match state --state ESTABLISHED,RELATED -j ACCEPT
+  200 allow input SSH:
+    - -A INPUT -i "${iface0}" -p tcp -m tcp --dport "22" --match state --state NEW,ESTABLISHED -j ACCEPT
+    - -A OUTPUT -o "${iface0}" -p tcp -m tcp --sport "22" --match state --state ESTABLISHED,RELATED -j ACCEPT
+  900 allow output SSH:
+    - -A INPUT -p tcp -m tcp --sport "22" --match state --state ESTABLISHED,RELATED -j ACCEPT
+    - -A OUTPUT -p tcp -m tcp --dport "22" --match state --state NEW,ESTABLISHED -j ACCEPT
+  901 allow output DNS and DHCP:
+    - -A INPUT -p tcp -m tcp --sport "53" --match state --state ESTABLISHED,RELATED -j ACCEPT
+    - -A OUTPUT -p tcp -m tcp --dport "53" --match state --state NEW,ESTABLISHED -j ACCEPT
+    - -A INPUT -p udp -m udp --sport "53" --match state --state ESTABLISHED,RELATED -j ACCEPT
+    - -A OUTPUT -p udp -m udp --dport "53" --match state --state NEW,ESTABLISHED -j ACCEPT
+    - -A INPUT -p udp -m udp --sport "67" --match state --state ESTABLISHED,RELATED -j ACCEPT
+    - -A OUTPUT -p udp -m udp --dport "67" --match state --state NEW,ESTABLISHED -j ACCEPT
+    - -A INPUT -p udp -m udp --sport "68" --match state --state ESTABLISHED,RELATED -j ACCEPT
+    - -A OUTPUT -p udp -m udp --dport "68" --match state --state NEW,ESTABLISHED -j ACCEPT
+  902 allow output HTTP, HTTPS:
+    - -A INPUT -p tcp -m multiport --sports "80,443" --match state --state ESTABLISHED,RELATED -j ACCEPT
+    - -A OUTPUT -p tcp -m multiport --dports "80,443" --match state --state NEW,ESTABLISHED -j ACCEPT
+  903 allow output NTP:
+    - -A INPUT -p udp -m udp --sport "123" --match state --state ESTABLISHED,RELATED -j ACCEPT
+    - -A OUTPUT -p udp -m udp --dport "123" --match state --state NEW,ESTABLISHED -j ACCEPT
+  #997 allow output all (ALLOW ALL OUT):
+    #- -A OUTPUT --match state --state NEW,ESTABLISHED -j ACCEPT
+  #998 enabling logging input:
+  #  - -N LOGGING_INPUT
+  #  - -A INPUT -j LOGGING_INPUT
+  #  - '-A LOGGING_INPUT -m limit --limit 2/min -j LOG --log-prefix "iptables inp packet dropped : " --log-level 7'
+  #  - -A LOGGING_INPUT -j DROP
+  #999 enabling logging output:
+  #  - -N LOGGING_OUTPUT
+  #  - -A OUTPUT -j LOGGING_OUTPUT
+  #  - '-A LOGGING_OUTPUT -m limit --limit 2/min -j LOG --log-prefix "iptables out packet dropped: " --log-level 7'
+  #  - -A LOGGING_OUTPUT -j DROP
+  ### journalctl -f | grep -E 'iptables (inp|out) packet dropped'
+
+firewall_v4_and_v6_group_rules: {}
+firewall_v4_and_v6_host_rules: {}
+
+firewall_v4_flush_rules: {}
+firewall_v4_default_rules:
+  #002 allow loopback:
+    #- -A INPUT -s "127.0.0.0/8" -d "127.0.0.0/8" -i "lo" -j ACCEPT
+    #- -A OUTPUT -s "127.0.0.0/8" -d "127.0.0.0/8" -o "lo" -j ACCEPT
+  003 allow ping:
+    - -A INPUT -p icmp -j ACCEPT
+    - -A OUTPUT -p icmp -j ACCEPT
+  #003 allow ping replies:
+    #- -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+    #- -A OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT
+
+firewall_v4_group_rules: {}
+firewall_v4_host_rules: {}
+
+firewall_v6_flush_rules: {}
+firewall_v6_default_rules:
+  #002 allow loopback:
+    #- -A INPUT -s "::1/128" -d "::1/128" -i "lo" -j ACCEPT
+    #- -A OUTPUT -s "::1/128" -d "::1/128" -o "lo" -j ACCEPT
+  003 allow ping:
+    - -A INPUT -p icmpv6 -j ACCEPT
+    - -A OUTPUT -p icmpv6 -j ACCEPT
+  #003 allow ping replies:
+    #- -A INPUT -p icmpv6 --icmpv6-type echo-request -j ACCEPT
+    #- -A OUTPUT -p icmpv6 --icmpv6-type echo-reply -j ACCEPT
+firewall_v6_group_rules: {}
+firewall_v6_host_rules: {}

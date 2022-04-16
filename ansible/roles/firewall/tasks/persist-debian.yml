@@ -1,0 +1,81 @@
+---
+- block:
+  - name: Create a link v4
+    file:
+      src: "{{ iptables_v4_config }}"
+      path: "{{ iptables_config_link_path }}"
+      state: link
+
+  - name: Enabling v4 rules restore on boot
+    lineinfile:
+      dest: "{{ network_configuration_file }}"
+      regexp: "^[ \t]*pre-up[ \t]*{{ iptables_v4_config }}"
+      line: "pre-up {{ iptables_v4_config }}"
+      state: "present"
+  when: firewall_v4_configure
+
+- name: Disabling v4 rules restore on boot
+  lineinfile:
+    dest: "{{ network_configuration_file }}"
+    regexp: "^[ \t]*pre-up[ \t]*{{ iptables_v4_config }}"
+    line: "pre-up {{ iptables_v4_config }}"
+    state: "absent"
+  when: not firewall_v4_configure
+
+- block:
+  - name: Create a link v6
+    file:
+      src: "{{ iptables_v6_config }}"
+      path: "{{ iptables_config_link_path }}"
+      state: link
+
+  - name: Enabling v6 rules restore on boot
+    lineinfile:
+      dest: "{{ network_configuration_file }}"
+      regexp: "^[ \t]*pre-up[ \t]*{{ iptables_v6_config }}"
+      line: "pre-up {{ iptables_v6_config }}"
+      state: "present"
+  when: firewall_v6_configure and not firewall_v4_configure
+
+- name: Disabling v6 rules restore on boot
+  lineinfile:
+    dest: "{{ network_configuration_file }}"
+    regexp: "^[ \t]*pre-up[ \t]*{{ iptables_v6_config }}"
+    line: "pre-up {{ iptables_v6_config }}"
+    state: "absent"
+  when: not firewall_v6_configure or firewall_v4_configure
+
+- block:
+  - name: Create a link custom
+    file:
+      src: "{{ iptables_custom_config }}"
+      path: "{{ iptables_config_link_path }}"
+      state: link
+
+  - name: Enabling custom rules restore on boot
+    lineinfile:
+      dest: "{{ network_configuration_file }}"
+      regexp: "^[ \t]*pre-up[ \t]*{{ iptables_custom_config }}"
+      line: "pre-up {{ iptables_custom_config }}"
+      state: "present"
+  when: firewall_custom_configure and not firewall_v4_configure and not firewall_v6_configure
+
+- name: Disabling custom rules restore on boot
+  lineinfile:
+    dest: "{{ network_configuration_file }}"
+    regexp: "^[ \t]*pre-up[ \t]*{{ iptables_custom_config }}"
+    line: "pre-up {{ iptables_custom_config }}"
+    state: "absent"
+  when: not firewall_custom_configure or firewall_v4_configure or firewall_v6_configure
+
+- block:
+  - name: Remove a directory "{{ iptables_config_dir }}" for iptables config
+    file:
+      path: "{{ iptables_config_dir }}"
+      state: absent
+
+  - name: Remove a link "{{ iptables_config_link_path }}"
+    file:
+      path: "{{ iptables_config_link_path }}"
+      state: absent
+  when: not firewall_v4_configure and not firewall_v6_configure and not firewall_custom_configure

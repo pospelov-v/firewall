@@ -1,0 +1,51 @@
+{{ shebang_bash }}
+# {{ ansible_managed }}
+
+{{ firewall_header_status }}
+{{ firewall_header_v4 }}
+
+{{ ifaces }}
+
+{% set merged = firewall_v4_and_v6_default_rules.copy() %}
+{% set _ = merged.update(firewall_v4_default_rules) %}
+{% set _ = merged.update(firewall_v4_and_v6_group_rules) %}
+{% set _ = merged.update(firewall_v4_group_rules) %}
+{% set _ = merged.update(firewall_v4_and_v6_host_rules) %}
+{% set _ = merged.update(firewall_v4_host_rules) %}
+
+# flush rules
+{% for rule in firewall_v4_and_v6_flush_rules %}
+iptables_ {{ rule }};
+{% endfor %}
+
+# flush rules v4
+{% for rule in firewall_v4_flush_rules %}
+iptables_ {{ rule }};
+{% endfor %}
+
+{% for group, rules in merged|dictsort %}
+# {{ group }}
+{% if not rules %}
+# (none)
+{% endif %}
+{% for rule in rules %}
+iptables_ {{ rule }};
+{% endfor %}
+
+{% endfor %}
+
+{% if firewall_v6_configure %}
+iptables_v6_config="{{ iptables_v6_config }}";
+if [ -f "${iptables_v6_config}" ]; then
+  ${iptables_v6_config} || status_code="${?}";
+fi;
+{% endif %}
+
+{% if firewall_custom_configure %}
+firewall_custom_rules="{{ iptables_custom_config }}";
+if [ -f "${firewall_custom_rules}" ]; then
+  ${firewall_custom_rules} || status_code="${?}";
+fi;
+{% endif %}
+
+{{ firewall_footer_status }}

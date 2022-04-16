@@ -1,0 +1,18 @@
+---
+# tasks file for install-python
+
+- name: hosts list
+  run_once: true
+  debug:
+    var: ansible_play_hosts_all
+  delegate_to: localhost
+
+- name: Wait for port 22/tcp to become open on the host
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    connect_timeout: 5
+    delay: 0
+    sleep: 1
+    timeout: 300
+  delegate_to: localhost

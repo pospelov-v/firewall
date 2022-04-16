@@ -1,0 +1,10 @@
+---
+firewall_v4_and_v6_host_rules:
+  004 drop invalid:
+    - -A INPUT -m state --state INVALID -j DROP
+    - -A FORWARD -m state --state INVALID -j DROP
+    - -A OUTPUT -m state --state INVALID -j DROP
+  202 allow input HTTP, HTTPS:
+    - -A INPUT -p tcp -i "${iface0}" -m multiport --dports "80,443" --match state --state NEW,ESTABLISHED -j ACCEPT
+    - -A OUTPUT -p tcp -o "${iface0}" -m multiport --sports "80,443" --match state --state ESTABLISHED,RELATED -j ACCEPT
+

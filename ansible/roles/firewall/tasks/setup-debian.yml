@@ -1,0 +1,35 @@
+---
+- block:
+  - name: Fail if IPv4 interface is not defined
+    fail:
+      msg: "IPv4 interface is not defined"
+    when: ansible_default_ipv4.interface is not defined
+
+  # the "apt" call is needed for "auto-installing missing dependency: python-apt" before calling the "package_facts" module
+  - name: Check missing dependencies
+    apt:
+      update_cache: yes
+      cache_valid_time: "{{ apt_update_cache_valid_time | default(3600) }}"
+
+  - name: Get information about installed packages as facts
+    package_facts:
+      manager: "auto"
+
+  - name: Ensure ufw is disabled
+    ufw:
+      state: disabled
+    when: "'ufw' in ansible_facts.packages"
+
+  - name: Install iptables packages
+    apt:
+      name: "{{ iptables_pkgs }}"
+      state: present
+    when: not ansible_check_mode and not 'iptables' in ansible_facts.packages
+
+  - name: Create a directory for iptables config if it does not exist
+    file:
+      path: "{{ iptables_config_dir }}"
+      state: directory
+      owner: root
+      mode: 0755
+  when: firewall_v4_configure or firewall_v6_configure or firewall_custom_configure

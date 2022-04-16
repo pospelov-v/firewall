@@ -1,0 +1,119 @@
+---
+- name: Generate off rules
+  template:
+    src: generated.off.j2
+    dest: "{{ iptables_off_config }}"
+    owner: root
+    mode: 0755
+  when: firewall_v4_configure or firewall_v6_configure or firewall_custom_configure
+
+- name: Remove "{{ iptables_off_config }}"
+  file:
+    path: "{{ iptables_off_config }}"
+    state: absent
+  when: not firewall_v4_configure and not firewall_v6_configure and not firewall_custom_configure
+
+- name: Generate v4 rules
+  template:
+    src: generated.v4.j2
+    dest: "{{ iptables_v4_config }}"
+    owner: root
+    mode: 0755
+  register: v4_script
+  when: firewall_v4_configure
+
+- name: Remove "{{ iptables_v4_config }}"
+  file:
+    path: "{{ iptables_v4_config }}"
+    state: absent
+  when: not firewall_v4_configure
+
+- name: Load v4 rules
+  command: "{{ iptables_v4_config }}"
+  async: 60
+  poll: 2
+  register: v4_script_load_result
+  failed_when: >-
+    v4_script_load_result.rc != 0 or
+    'unknown option' in v4_script_load_result.stderr or
+    'Table does not exist' in v4_script_load_result.stderr
+  when: v4_script is changed
+
+- name: Remove on an async task file
+  async_status:
+    jid: "{{ v4_script_load_result.ansible_job_id }}"
+    mode: 'cleanup'
+  when: v4_script_load_result.ansible_job_id is defined
+
+- name: Generate v6 rules
+  template:
+    src: generated.v6.j2
+    dest: "{{ iptables_v6_config }}"
+    owner: root
+    mode: 0755
+  register: v6_script
+  when: firewall_v6_configure
+
+- name: Remove "{{ iptables_v6_config }}"
+  file:
+    path: "{{ iptables_v6_config }}"
+    state: absent
+  when: not firewall_v6_configure
+
+- name: Load v6 rules
+  command: "{{ iptables_v6_config }}"
+  async: 60
+  poll: 2
+  register: v6_script_load_result
+  failed_when: >-
+    v6_script_load_result.rc != 0 or
+    'unknown option' in v6_script_load_result.stderr or
+    'Table does not exist' in v6_script_load_result.stderr
+  when: v6_script is changed
+
+- name: Remove on an async task file
+  async_status:
+    jid: "{{ v6_script_load_result.ansible_job_id }}"
+    mode: 'cleanup'
+  when: v6_script_load_result.ansible_job_id is defined
+
+- name: Ensure custom rules file exists
+  copy:
+    content: "{{ shebang_bash }}\n{{ firewall_header_status }}\n{{ firewall_header_v4 }}\n{{ firewall_header_v6 }}\n\n{{ ifaces }}\n\n\n{{ firewall_footer_status }}"
+    dest: "{{ iptables_custom_config }}"
+    force: no
+    owner: root
+    mode: 0755
+  when: firewall_custom_configure
+
+- name: Remove "{{ iptables_custom_config }}"
+  file:
+    path: "{{ iptables_custom_config }}"
+    state: absent
+  when: not firewall_custom_configure
+
+- block:
+    - name: Check firewall v4 rules
+      shell: >
+       for table in filter nat mangle raw security; do \
+         echo; echo "table: ${table}"; \
+         iptables -L -n -v --line-numbers -t "${table}"; \
+       done
+      register: check_v4_rules
+    - name: Show firewall v4 rules
+      debug:
+        var: check_v4_rules.stdout_lines
+  when: iptables_show_v4_rules
+
+- block:
+    - name: Check firewall v6 rules
+      shell: >
+       for table in filter nat mangle raw security; do \
+         echo; echo "table: ${table}"; \
+         ip6tables -L -n -v --line-numbers -t "${table}"; \
+       done
+      register: check_v6_rules
+    - name: Show firewall v6 rules
+      debug:
+        var: check_v6_rules.stdout_lines
+  when: iptables_show_v6_rules

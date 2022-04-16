@@ -1,0 +1,34 @@
+---
+# vars file for roles/firewall
+shebang_bash: |
+  #!/usr/bin/env bash
+
+firewall_header_status: |
+  status_code="0";
+
+firewall_header_v4: |
+  if [ -f "/sbin/iptables" ]; then
+    _iptables="/sbin/iptables";
+  elif [ -f "/usr/sbin/iptables" ]; then
+    _iptables="/usr/sbin/iptables";
+  else
+    _iptables="iptables";
+  fi;
+  function iptables_(){
+    ${_iptables} "${@}" || status_code="${?}";
+  };
+
+firewall_header_v6: |
+  if [ -f "/sbin/ip6tables" ]; then
+    _ip6tables="/sbin/ip6tables";
+  elif [ -f "/usr/sbin/ip6tables" ]; then
+    _ip6tables="/usr/sbin/ip6tables";
+  else
+    _ip6tables="ip6tables";
+  fi;
+  function ip6tables_(){
+    ${_ip6tables} "${@}" || status_code="${?}";
+  };
+
+firewall_footer_status: |
+  exit "${status_code}";

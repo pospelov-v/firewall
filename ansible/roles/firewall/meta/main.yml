@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: Vyacheslav Pospelov
+  description: A role to manage iptables rules.
+  company: N/A
+  license: BSD
+  min_ansible_version: 1.2
+  platforms:
+  - name: Debian
+    versions:
+    - jessie
+    - stretch
+    - buster
+    - bullseye
+    categories:
+    - networking
+    - system
+dependencies: []

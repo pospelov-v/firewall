@@ -1,0 +1,51 @@
+---
+# tasks file for install-python
+
+- include: wait-hosts.yml
+
+- name: Install python in target node with ansible
+  raw: |
+    #!/bin/bash
+    changed_when=false;
+    result_code=0;
+    main() {
+      declare -A osInfo;
+      osInfo[/etc/debian_version]="apt";
+      osInfo[/etc/alpine-release]="apk";
+      osInfo[/etc/centos-release]="yum";
+      osInfo[/etc/fedora-release]="dnf";
+      for f in ${!osInfo[@]}; do
+        if [[ -f "${f}" ]]; then
+          package_manager="${osInfo[$f]}";
+        fi;
+      done;
+      python_not_exists=true;
+      for p in python python3; do
+        if ${p} --version > /dev/null 2>&1; then
+          python_not_exists=false;
+          _python="${p}";
+        fi;
+      done;
+      if ${python_not_exists}; then
+        if ${package_manager} update; then
+          if ${package_manager} install -y python3; then
+            changed_when=true;
+          else
+            if ${package_manager} install -y python; then
+              changed_when=true;
+            else
+              result_code=1;
+            fi;
+          fi;
+        else
+          result_code=2;
+        fi;
+      fi;
+    };
+    main > /dev/null 2>&1;
+    echo -n "${changed_when}";
+    exit "${result_code}";
+  args:
+    executable: /bin/bash
+  register: _changed_when
+  changed_when: _changed_when.stdout | bool
